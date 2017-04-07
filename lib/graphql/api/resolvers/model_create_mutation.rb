@@ -18,7 +18,7 @@ module GraphQL::Api
       end
 
       def key
-        @model.name.underscore.to_sym
+        @model.name.camelize(:lower).gsub('::', '_').to_sym
       end
 
     end

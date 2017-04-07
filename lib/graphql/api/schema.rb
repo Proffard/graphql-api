@@ -46,7 +46,7 @@ module GraphQL::Api
       object_types = @types
 
       GraphQL::ObjectType.define do
-        name model_class.name
+        name model_class.name.gsub("::", "_")
         description "Get #{model_class.name}"
 
         if model_class.respond_to?(:columns)
@@ -64,15 +64,15 @@ module GraphQL::Api
           end
         end
 
-        if model_class.respond_to?(:reflections)
+        if model_class.respond_to?(:reflections) && model_class.to_s != "PaperTrail::Version"
           model_class.reflections.each do |name, association|
-            field name do
+            field name.gsub("::", "_") do
               if association.collection?
                 type types[object_types[association.class_name.constantize]]
               else
                 type object_types[association.class_name.constantize]
               end
-              resolve Resolvers::Field.new(model_class, name)
+              resolve Resolvers::Field.new(model_class, name.gsub("::", "_"))
             end
           end
         end
@@ -85,7 +85,7 @@ module GraphQL::Api
       prefix = action == :perform ? '' : action.capitalize
 
       GraphQL::Relay::Mutation.define do
-        name "#{prefix}#{object_type.name}"
+        name "#{prefix}#{object_type.name.gsub("::", "_")}"
         description "Command #{object_type.name} #{action}"
 
         object_type.inputs.each do |input, type|
@@ -106,14 +106,14 @@ module GraphQL::Api
       object_types = @types
 
       GraphQL::Relay::Mutation.define do
-        name "Create#{model_class.name}"
+        name "Create#{model_class.name.gsub("::", "_")}"
         description "Create #{model_class.name}"
 
         model_class.columns.each do |column|
           input_field column.name, graphql_type(column)
         end
 
-        return_field model_class.name.underscore.to_sym, object_types[model_class]
+        return_field model_class.name.camelize(:lower).gsub("::", "_").to_sym, object_types[model_class]
         resolve Resolvers::ModelCreateMutation.new(model_class)
       end
     end
@@ -124,7 +124,7 @@ module GraphQL::Api
       object_types = @types
 
       GraphQL::Relay::Mutation.define do
-        name "Update#{model_class.name}"
+        name "Update#{model_class.name.gsub("::", "_")}"
         description "Update #{model_class.name}"
 
         input_field :id, !types.ID
@@ -132,7 +132,7 @@ module GraphQL::Api
           input_field column.name, graphql_type(column)
         end
 
-        return_field model_class.name.underscore.to_sym, object_types[model_class]
+        return_field model_class.name.camelize(:lower).gsub("::", "_").to_sym, object_types[model_class]
         resolve Resolvers::ModelUpdateMutation.new(model_class)
       end
     end
@@ -143,12 +143,12 @@ module GraphQL::Api
       object_types = @types
 
       GraphQL::Relay::Mutation.define do
-        name "Delete#{model_class.name}"
+        name "Delete#{model_class.name.gsub("::", "_")}"
         description "Delete #{model_class.name}"
 
         input_field :id, !types.ID
 
-        return_field model_class.name.underscore.to_sym, object_types[model_class]
+        return_field model_class.name.camelize(:lower).gsub("::", "_").to_sym, object_types[model_class]
         resolve Resolvers::ModelDeleteMutation.new(model_class)
       end
     end
@@ -165,7 +165,7 @@ module GraphQL::Api
         object_types.each do |object_class, graph_type|
           if object_class < ActiveRecord::Base
 
-            field(object_class.name.camelize(:lower)) do
+            field(object_class.name.camelize(:lower).gsub("::", "_")) do
               type graph_type
               argument :id, types.ID
 
@@ -178,7 +178,7 @@ module GraphQL::Api
               resolve Resolvers::ModelFindQuery.new(object_class)
             end
 
-            field(object_class.name.camelize(:lower).pluralize) do
+            field(object_class.name.camelize(:lower).pluralize.gsub("::", "_")) do
               type types[graph_type]
               argument :limit, types.Int
 
@@ -193,7 +193,7 @@ module GraphQL::Api
 
           elsif object_class.respond_to?(:arguments) && object_class.respond_to?(:return_type)
 
-            field(object_class.name.camelize(:lower)) do
+            field(object_class.name.camelize(:lower).gsub("::", "_")) do
               type(graphql_type_for_object(object_class.return_type, object_types))
 
               object_class.arguments.each do |argument_name, argument_type|
@@ -239,9 +239,9 @@ module GraphQL::Api
     def build_mutations
       all_models.each do |model_class|
         @mutations[model_class] = [
-            ["create#{model_class.name}", create_mutation(model_class)],
-            ["update#{model_class.name}", update_mutation(model_class)],
-            ["delete#{model_class.name}", delete_mutation(model_class)],
+            ["create#{model_class.name.gsub("::", "_")}", create_mutation(model_class)],
+            ["update#{model_class.name.gsub("::", "_")}", update_mutation(model_class)],
+            ["delete#{model_class.name.gsub("::", "_")}", delete_mutation(model_class)],
         ].map { |x| x if x[1] }.compact
       end
 
